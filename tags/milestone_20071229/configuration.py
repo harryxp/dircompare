@@ -1,0 +1,13 @@
+leftPath = 'dir1'
+rightPath = 'dir2'
+frameSize = (800, 600)
+normalTextColor = 'black'
+normalBgColor = 'white'
+oneSideTextColor = 'blue'
+oneSideBgColor = 'light blue'
+diffTextColor = 'red'
+diffBgColor = 'pink'
+ignore = None #['.svn']
+hide = None #['.svn']
+loggingLevel = 'logging.DEBUG'
+fileCmpCommand = 'cmd /c "C:\\Program Files\\PSPad editor\\PSPad.exe -D %s %s"'
