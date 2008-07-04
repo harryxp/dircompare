@@ -185,12 +185,13 @@ def onAbout(event):
     aboutinfo.SetName('DirCompare')
     aboutinfo.SetVersion('0.2')
     aboutinfo.SetLicense('GNU')
-    aboutinfo.SetWebSite('https://sourceforge.net/projects/dircompare')
+#    aboutinfo.SetWebSite('https://sourceforge.net/projects/dircompare')
+    aboutinfo.SetWebSite('http://code.google.com/p/dircompare')
     aboutinfo.AddDeveloper('Pan Xingzhi')
     wx.AboutBox(aboutinfo)
 
 def onHelp(event):
-    info('Please visit https://sourceforge.net/projects/dircompare \n' +
+    info('Please visit http://code.google.com/p/dircompare \n' +
             '         or send email to vengeance.storm@gmail.com. \n' +
             '                                       Thanks!', 'Help')
 
