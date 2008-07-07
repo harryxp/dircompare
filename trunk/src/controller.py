@@ -70,6 +70,8 @@ def onDel(event):
     # TODO multiple del
     window = wx.Window.FindFocus()
     if window not in (lTree, rTree):
+        info('Please select one and only one item to delete.\nDeleting multiple items is not allowed now.',
+                caption='Operation not supported')
         return
     propName = 'leftFile' if window is lTree else 'rightFile'
     selections = window.GetSelections()
@@ -88,6 +90,8 @@ def onCmp(event):
         alert('GVim installation not found. Please set it up correctly in configuration.py.')
     window = wx.Window.FindFocus()
     if window not in (lTree, rTree):
+        info('Please select one and only one file item to compare.',
+                caption='Operation not supported')
         return
     selections = window.GetSelections()
     if len(selections) != 1 or \
@@ -109,6 +113,8 @@ def onRefreshAll(event):
 def onFocus(event):
     window = wx.Window.FindFocus()
     if window not in (lTree, rTree):
+        info('Please select a valid folder item to focus.',
+                caption='Operation not supported')
         return
     selections = window.GetSelections()
     if len(selections) != 1 or \
@@ -126,6 +132,8 @@ def onBrowse(event):
     # TODO multiple browse
     window = wx.Window.FindFocus()
     if window not in (lTree, rTree):
+        info('Please select a valid item to browse.',
+                caption='Operation not supported')
         return
     propName = 'leftFile' if window is lTree else 'rightFile'
     for each in window.GetSelections():
