@@ -72,7 +72,7 @@ The status of an item can be:
 |                          |                               |   are not compared yet, or when 2     |                                               |
 |                          |                               |   folders/files are both deleted.     |                                               |
 |             ~            |                ~              |                   ~                   |                                               |
-|   common, same           |   STATUS_SAME                 |   Two folders are considered same     | D, r, E                                       |
+|   common, same           |   STATUS_SAME                 |   Two folders are considered same     | D, B, F                                       |
 |                          |                               |   only if                             |                                               |
 |                          |                               |     1. they're both comparable        |                                               |
 |                          |                               |     2. their are on both side         |                                               |
@@ -85,30 +85,30 @@ The status of an item can be:
 |                          |                               |        using a predicate (currently   |                                               |
 |                          |                               |        filecmp.cmp)                   |                                               |
 |             ~            |                ~              |                   ~                   |                                               |
-|   common, diff           |   STATUS_DIFF                 |                                       | >, <, D, C(file only), r, E                   |
+|   common, diff           |   STATUS_DIFF                 |                                       | >, <, D, C(file only), B, F                   |
 |             ~            |                ~              |                   ~                   |                                               |
-|   common, both unknown   |   STATUS_COMMON_BOTH_UNKNOWN  |   The file/folder exists on both      | r                                             |
+|   common, both unknown   |   STATUS_COMMON_BOTH_UNKNOWN  |   The file/folder exists on both      |                                               |
 |                          |                               |   sides, but both of them are         |                                               |
 |                          |                               |   uncomparable.                       |                                               |
 |             ~            |                ~              |                   ~                   |                                               |
-|   common, left unknown   |   STATUS_COMMON_LEFT_UNKNOWN  |   The file/folder exists on both      | D(right only), r, E(right only)               |
+|   common, left unknown   |   STATUS_COMMON_LEFT_UNKNOWN  |   The file/folder exists on both      | D(right only), B(right only)                  |
 |                          |                               |   sides, but the left side is         |                                               |
 |                          |                               |   uncomparable.                       |                                               |
 |             ~            |                ~              |                   ~                   |                                               |
-|   common, right unknown  |   STATUS_COMMON_RIGHT_UNKNOWN |   The file/folder exists on both      | D(left only), r , E(left only)                |
+|   common, right unknown  |   STATUS_COMMON_RIGHT_UNKNOWN |   The file/folder exists on both      | D(left only), B(left only)                    |
 |                          |                               |   sides, but the right side is        |                                               |
 |                          |                               |   uncomparable.                       |                                               |
 |             ~            |                ~              |                   ~                   |                                               |
-|   left only              |   STATUS_LEFT_ONLY            |   The file/folder only exists on left | >, D(left only), r, E(left only)              |
+|   left only              |   STATUS_LEFT_ONLY            |   The file/folder only exists on left | >, D(left only), B(left only)                 |
 |                          |                               |   side, and it's comparable.          |                                               |
 |             ~            |                ~              |                   ~                   |                                               |
-|   right only             |   STATUS_RIGHT_ONLY           |   The file/folder only exists on      | <, D(right only), r, E(right only)            |
+|   right only             |   STATUS_RIGHT_ONLY           |   The file/folder only exists on      | <, D(right only), B(right only)               |
 |                          |                               |   right side, and it's comparable.    |                                               |
 |             ~            |                ~              |                   ~                   |                                               |
-|   left only, unknown     |   STATUS_LEFT_ONLY_UNKNOWN    |   The file/folder only exists on left | r(left only)                                  |
+|   left only, unknown     |   STATUS_LEFT_ONLY_UNKNOWN    |   The file/folder only exists on left |                                               |
 |                          |                               |   side, and it's uncomparable.        |                                               |
 |             ~            |                ~              |                   ~                   |                                               |
-|   right only, unknown    |   STATUS_RIGHT_ONLY_UNKNOWN   |   The file/folder only exists on      | r(right only)                                 |
+|   right only, unknown    |   STATUS_RIGHT_ONLY_UNKNOWN   |   The file/folder only exists on      |                                               |
 |                          |                               |   right side, and it's uncomparable.  |                                               |
 +--------------------------+-------------------------------+---------------------------------------+-----------------------------------------------+
 
@@ -116,10 +116,10 @@ Operations:
 >: copy from left to right (always left only)
 <: copy from right to left (always right only)
 D: delete
-C: compare files
+C: compare files (file only)
 R: refresh all (global)
-r: refresh selected
-E: explore with file manager
+F: focus on selected folder
+B: browse in file manager
 N: new compare session (global)
 S: save compare session (global)
 L: load compare session (global)
@@ -139,7 +139,7 @@ PyData objects are used to connect left/right wx tree items with each other and 
 
 II. Algorithm
 
-The comparison always starts with 2 folders (left and right).
+The comparison always starts with 2 folders (left and right). They're considered "common".
 
 To compare 2 folders (left and right):
 1. If one or more of them are uncomparable, the item representing left and right is marked as STATUS_COMMON_BOTH_UNKNOWN, STATUS_COMMON_LEFT_UNKNOWN or STATUS_COMMON_RIGHT_UNKNOWN, then the comparison process ends.
