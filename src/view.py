@@ -43,7 +43,7 @@ class MainFrame(wx.Frame):
 #            (' r ', 'btn_rfsh', 'Refresh selected', 'Refresh selected item'),
             (' F ', 'btn_fcs', 'Focus on current folder', 'Start a new session using selected folders as roots'),
             (None, ) * 4,
-            (' B ', 'btn_brws', 'Browse in explorer', 'Use file manager/explorer to browse this item'),
+            (' B ', 'btn_brws', 'Browse in file manager', 'Use file manager to browse this item'),
             (None, ) * 4,
             (' A ', 'btn_abt', 'About', 'About DirCompare'),
             (' ? ', 'btn_hlp', 'Help', 'Help'))
