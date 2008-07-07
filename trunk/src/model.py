@@ -40,11 +40,11 @@ class DataItem(object):
 
     # status is one of:
     __status = None
-    STATUS_SAME = 'same'
-    STATUS_DIFF = 'diff'
-    STATUS_COMMON_BOTH_UNKNOWN = 'both unknown'
-    STATUS_COMMON_LEFT_UNKNOWN = 'left unknown'
-    STATUS_COMMON_RIGHT_UNKNOWN = 'right unknown'
+    STATUS_SAME = 'common same'
+    STATUS_DIFF = 'common diff'
+    STATUS_COMMON_BOTH_UNKNOWN = 'common both unknown'
+    STATUS_COMMON_LEFT_UNKNOWN = 'common left unknown'
+    STATUS_COMMON_RIGHT_UNKNOWN = 'common right unknown'
     STATUS_LEFT_ONLY = 'left only'
     STATUS_RIGHT_ONLY = 'right only'
     STATUS_LEFT_ONLY_UNKNOWN = 'left only unknown'
@@ -117,7 +117,7 @@ class DataItem(object):
             raise TypeError, 'method <initChildrenItems> is only available to directories'
 
         # decide if self is one of <STATUS_COMMON_BOTH_UNKNOWN, STATUS_COMMON_LEFT_UNKNOWN, STATUS_COMMON_RIGHT_UNKNOWN>
-        self.__decideItemCommonUnknown(ignore)
+        self.__decideItemCommonUnknown()
         # TODO do more, deal with STATUS_COMMON_LEFT_UNKNOWN and STATUS_COMMON_RIGHT_UNKNOWN.
         if self.status:
             return
@@ -164,7 +164,7 @@ class DataItem(object):
 
         self.children.sort()
 
-    def __decideItemCommonUnknown(self, ignore=None):
+    def __decideItemCommonUnknown(self):
         """Decides if self.leftFile and self.rightFile are in 'uncomparable' state."""
         lComparable, rComparable = _isComparable(self.leftFile), _isComparable(self.rightFile)
 
@@ -209,7 +209,7 @@ class DataItem(object):
             if type is DataItem.TYPE_DIR:
                 itm.initChildrenItems(ignore)
             else:
-                itm.__decideItemCommonUnknown(ignore)
+                itm.__decideItemCommonUnknown()
                 if not itm.status:
                     itm.status = DataItem.STATUS_SAME \
                             if filecmp.cmp(itm.leftFile, itm.rightFile, shallow=conf.shallow) else \
@@ -280,12 +280,6 @@ class DataItem(object):
 #                    return
 #            # this will trigger 'onPropertyChange'
 #            self.status = DataItem.STATUS_SAME
-
-    def refresh(self):
-        if self.type is DataItem.TYPE_DIR:
-            self.initChildrenItems(conf.ignore)
-        else:
-            self.compareFiles()
 
     # overrides
     def __cmp__(self, o):

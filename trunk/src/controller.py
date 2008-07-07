@@ -23,7 +23,7 @@ import os.path as path
 ##############################
 def genOnItemActivated(srcTree, otherTree):
     """Generates closures as handlers on tree item activated."""
-    def handler(event):
+    def onItemActivated(event):
         srcTreeItem = event.GetItem()
         pyData = srcTree.GetPyData(srcTreeItem)
         dataItem, otherTreeItem = pyData.data, pyData.getOtherTreeItem(srcTreeItem)
@@ -32,37 +32,36 @@ def genOnItemActivated(srcTree, otherTree):
                               and not srcTree.ItemHasChildren(srcTreeItem):
                 drawNodes(dataItem.children, pyData.lTreeItem, pyData.rTreeItem)
             elif dataItem.type is DataItem.TYPE_FILE:
-                if not path.exists(conf.fileCmpCommand):
-                    alert('GVim installation not found. Please set it up correctly in configuration.py.')
-                dataItem.compareFiles()
+                onCmp(event)
             otherTree.Expand(otherTreeItem)
         else:
             otherTree.Collapse(otherTreeItem)
         srcTree.Refresh()
         otherTree.Refresh()
         event.Skip()
-    return handler
+    return onItemActivated
 
 def genOnSelChanged(srcTree, otherTree):
     """Generates closures as handlers on tree item selection changed."""
-    def handler(event):
+    def onSelChanged(event):
         if otherTree:
             otherTree.UnselectAll()
-    return handler
+    return onSelChanged
 
 def genOnCopy(srcTree):
     """Generates closures as handlers on copying items from one side to the other."""
     # TODO multiple copy
     def onCopy(event):
         selections = srcTree.GetSelections()
-        if len(selections) > 1:
-            info('Copying multiple items is not allowed now',
+        if len(selections) != 1:
+            info('Please select one and only one item to copy.\nCopying multiple items is not allowed now.',
                     caption='Operation not supported')
             return
         for each in selections:
             dataItem = srcTree.GetPyData(each).data
             src, dest = 'leftLocation' if srcTree is lTree else 'rightLocation', \
                         'leftLocation' if srcTree is rTree else 'rightLocation'
+            # TODO catch exceptions
             dataItem.copyTo(src, dest)
         event.Skip()
     return onCopy
@@ -74,24 +73,26 @@ def onDel(event):
         return
     propName = 'leftFile' if window is lTree else 'rightFile'
     selections = window.GetSelections()
-    if len(selections) > 1:
-        info('Deleting multiple items is not allowed now',
+    if len(selections) != 1:
+        info('Please select one and only one item to delete.\nDeleting multiple items is not allowed now.',
                 caption='Operation not supported')
         return
     for each in selections:
         dataItem = window.GetPyData(each).data
+        # TODO catch exceptions
         dataItem.delete(propName)
 
 def onCmp(event):
+    # TODO block user actions when comparing files?
     if not path.exists(conf.fileCmpCommand):
         alert('GVim installation not found. Please set it up correctly in configuration.py.')
-    # TODO multiple cmp
     window = wx.Window.FindFocus()
     if window not in (lTree, rTree):
         return
     selections = window.GetSelections()
-    if len(selections) > 1:
-        info('Please choose a file item to compare.',
+    if len(selections) != 1 or \
+            window.GetPyData(selections[0]).data.type is not DataItem.TYPE_FILE:
+        info('Please select one and only one file item to compare.',
                 caption='Operation not supported')
         return
     for each in selections:
@@ -110,8 +111,9 @@ def onFocus(event):
     if window not in (lTree, rTree):
         return
     selections = window.GetSelections()
-    if len(selections) > 1:
-        info('Please choose a valid folder item to focus.',
+    if len(selections) != 1 or \
+            window.GetPyData(selections[0]).data.type is not DataItem.TYPE_DIR:
+        info('Please select a valid folder item to focus.',
                 caption='Operation not supported')
         return
     for each in selections:
@@ -192,8 +194,8 @@ def onAbout(event):
 
 def onHelp(event):
     info('Please visit http://code.google.com/p/dircompare \n' +
-            '         or send email to vengeance.storm@gmail.com. \n' +
-            '                                       Thanks!', 'Help')
+            '  or send email to vengeance.storm@gmail.com. \n' +
+            '                               Thanks!', 'Help')
 
 def genOnScroll(srcTree, otherTree, ins):
     def onScroll(event):
@@ -276,10 +278,8 @@ def startCmp(session):
     lTextCtrl.SetValue(path.normpath(leftPath))
     rTextCtrl.SetValue(path.normpath(rightPath))
 
-def refresh():
-    pass
-
 def figureTreeItemStyle(dataItem):
+    # TODO more styles for "uncomparable"s
     dirFlag = dataItem.type is DataItem.TYPE_DIR
     if dataItem.status is DataItem.STATUS_LEFT_ONLY:
         lText = dataItem.filename
@@ -287,10 +287,10 @@ def figureTreeItemStyle(dataItem):
         lTreeItemStyle = TreeItemStyle.DIR_ONESIDEONLY if dirFlag else TreeItemStyle.FILE_ONESIDEONLY
         rTreeItemStyle = TreeItemStyle.DIR_ABSENT if dirFlag else TreeItemStyle.FILE_ABSENT
     elif dataItem.status is DataItem.STATUS_RIGHT_ONLY:
-        lTreeItemStyle = TreeItemStyle.DIR_ABSENT if dirFlag else TreeItemStyle.FILE_ABSENT
-        rTreeItemStyle = TreeItemStyle.DIR_ONESIDEONLY if dirFlag else TreeItemStyle.FILE_ONESIDEONLY
         lText = ''
         rText = dataItem.filename
+        lTreeItemStyle = TreeItemStyle.DIR_ABSENT if dirFlag else TreeItemStyle.FILE_ABSENT
+        rTreeItemStyle = TreeItemStyle.DIR_ONESIDEONLY if dirFlag else TreeItemStyle.FILE_ONESIDEONLY
     elif dataItem.status is DataItem.STATUS_SAME:
         lText = dataItem.filename
         rText = dataItem.filename
@@ -388,30 +388,20 @@ lTree.Bind(wx.EVT_TREE_SEL_CHANGED, genOnSelChanged(lTree, rTree))
 rTree.Bind(wx.EVT_TREE_SEL_CHANGED, genOnSelChanged(rTree, lTree))
 
 # sync scrolling
-lTree.Bind(wx.EVT_SCROLLWIN, genOnScroll(lTree, rTree, 'SCROLLWIN'))
-rTree.Bind(wx.EVT_SCROLLWIN, genOnScroll(rTree, lTree, 'SCROLLWIN'))
-lTree.Bind(wx.EVT_SCROLLWIN_LINEUP, genOnScroll(lTree, rTree, 'LINEUP'))
-rTree.Bind(wx.EVT_SCROLLWIN_LINEUP, genOnScroll(rTree, lTree, 'LINEUP'))
-lTree.Bind(wx.EVT_SCROLLWIN_LINEDOWN, genOnScroll(lTree, rTree, 'LINEDOWN'))
-rTree.Bind(wx.EVT_SCROLLWIN_LINEDOWN, genOnScroll(rTree, lTree, 'LINEDOWN'))
-lTree.Bind(wx.EVT_SCROLLWIN_PAGEUP, genOnScroll(lTree, rTree, 'PAGEUP'))
-rTree.Bind(wx.EVT_SCROLLWIN_PAGEUP, genOnScroll(rTree, lTree, 'PAGEUP'))
-lTree.Bind(wx.EVT_SCROLLWIN_PAGEDOWN, genOnScroll(lTree, rTree, 'PAGEDOWN'))
-rTree.Bind(wx.EVT_SCROLLWIN_PAGEDOWN, genOnScroll(rTree, lTree, 'PAGEDOWN'))
-lTree.Bind(wx.EVT_SCROLLWIN_TOP, genOnScroll(lTree, rTree, 'TOP'))
-rTree.Bind(wx.EVT_SCROLLWIN_TOP, genOnScroll(rTree, lTree, 'TOP'))
-lTree.Bind(wx.EVT_SCROLLWIN_BOTTOM, genOnScroll(lTree, rTree, 'BOTTOM'))
-rTree.Bind(wx.EVT_SCROLLWIN_BOTTOM, genOnScroll(rTree, lTree, 'BOTTOM'))
-lTree.Bind(wx.EVT_SCROLLWIN_THUMBTRACK, genOnScroll(lTree, rTree, 'THUMBTRACK'))
-rTree.Bind(wx.EVT_SCROLLWIN_THUMBTRACK, genOnScroll(rTree, lTree, 'THUMBTRACK'))
-lTree.Bind(wx.EVT_SCROLLWIN_THUMBRELEASE, genOnScroll(lTree, rTree, 'THUMBRELEASE'))
-rTree.Bind(wx.EVT_SCROLLWIN_THUMBRELEASE, genOnScroll(rTree, lTree, 'THUMBRELEASE'))
-lTree.Bind(wx.EVT_SCROLLBAR, genOnScroll(lTree, rTree, 'SCROLLBAR'))
-rTree.Bind(wx.EVT_SCROLLBAR, genOnScroll(rTree, lTree, 'SCROLLBAR'))
-lTree.Bind(wx.EVT_SCROLL, genOnScroll(lTree, rTree, 'SCROLL'))
-rTree.Bind(wx.EVT_SCROLL, genOnScroll(rTree, lTree, 'SCROLL'))
-lTree.Bind(wx.EVT_MOUSEWHEEL, genOnScroll(lTree, rTree, 'MOUSEWHEEL'))
-rTree.Bind(wx.EVT_MOUSEWHEEL, genOnScroll(rTree, lTree, 'MOUSEWHEEL'))
+def bindScrollingHandlers(targetTree, otherTree):
+    map(targetTree.Bind,
+        (wx.EVT_SCROLLWIN, wx.EVT_SCROLLWIN_LINEUP, wx.EVT_SCROLLWIN_LINEDOWN,
+        wx.EVT_SCROLLWIN_PAGEUP, wx.EVT_SCROLLWIN_PAGEDOWN, wx.EVT_SCROLLWIN_TOP,
+        wx.EVT_SCROLLWIN_BOTTOM, wx.EVT_SCROLLWIN_THUMBTRACK, wx.EVT_SCROLLWIN_THUMBRELEASE,
+        wx.EVT_SCROLLBAR, wx.EVT_SCROLL, wx.EVT_MOUSEWHEEL),
+        map(genOnScroll,
+            (targetTree, ) * 12, (otherTree, ) * 12, 
+            ('SCROLLWIN', 'SCROLLWIN_LINEUP', 'SCROLLWIN_LINEDOWN',
+            'SCROLLWIN_PAGEUP', 'SCROLLWIN_PAGEDOWN', 'SCROLLWIN_TOP',
+            'SCROLLWIN_BOTTOM', 'SCROLLWIN_THUMBTRACK', 'SCROLLWIN_THUMBRELEASE',
+            'SCROLLBAR', 'SCROLL', 'MOUSEWHEEL')))
+bindScrollingHandlers(lTree, rTree)
+bindScrollingHandlers(rTree, lTree)
 
 # toolbar button handlers
 map(frame.Bind, (wx.EVT_MENU, ) * 12,
