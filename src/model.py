@@ -1,5 +1,6 @@
 #    -*- coding: utf-8 -*-
 #    Advanced directory compare tool in Python.
+#
 #    Copyright (C) 2008  Pan Xingzhi
 #    http://code.google.com/p/dircompare/
 #
@@ -57,6 +58,7 @@ class DataItem(object):
         # TODO check if newStatus is valid
         if newStatus is not self.__status:
             self.__status = newStatus
+            # tell the controller
             self.updateUI()
             # oldStatus is None means this is the first time set
             # it's parent should not be notified in this case
@@ -107,10 +109,13 @@ class DataItem(object):
         self.leftLocation = leftLocation
         self.rightLocation = rightLocation
 
+#    def refresh(self):
+#        if 
+
     # sub items initializers
-    def initChildrenItems(self, ignore=None):
-        """Returns the status and children of current DataItem instance being calculated."""
-        if not isinstance(ignore, (list, )): 
+    def initChildrenItems(self, ignore=[]):
+        """Returns the status and children of current (dir) DataItem instance being calculated."""
+        if not isinstance(ignore, (list, )):
             raise ValueError('ignore must be an instance of <type \'list\'>.')
 
         if self.type is not DataItem.TYPE_DIR:
@@ -179,7 +184,7 @@ class DataItem(object):
             self.children = []
             self.status = DataItem.STATUS_COMMON_RIGHT_UNKNOWN
 
-    def __initOneSideItems(self, names, type, status, badStatus, ignore=None):
+    def __initOneSideItems(self, names, type, status, badStatus, ignore=[]):
         """Recursively creates DataItem objects for given dir with given status."""
         baseDir = self.leftFile if status is DataItem.STATUS_LEFT_ONLY else self.rightFile
         for each in names:
@@ -322,7 +327,7 @@ class CompareSession(object):
 ##############################
 # start                      #
 ##############################
-def start(dir1, dir2, ignore=None):
+def start(dir1, dir2, ignore=[]):
     """Accepts 2 strings representing directories."""
     rootDataItem = DataItem('', dir1, dir2)
     rootDataItem.type = DataItem.TYPE_DIR
@@ -333,7 +338,7 @@ def start(dir1, dir2, ignore=None):
 ##############################
 # helpers                    #
 ##############################
-def _sepDirsAndFiles(d, ignore=None):
+def _sepDirsAndFiles(d, ignore=[]):
     """Seperates subdirs and files in a given dirs into two sets, and returns them."""
     # os.listdir gives names without paths
     nameSet = set(os.listdir(d))

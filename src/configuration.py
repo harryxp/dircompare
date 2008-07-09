@@ -1,5 +1,6 @@
 #    -*- coding: utf-8 -*-
 #    Advanced directory compare tool in Python.
+#
 #    Copyright (C) 2008  Pan Xingzhi
 #    http://code.google.com/p/dircompare/
 #
