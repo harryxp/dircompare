@@ -1,5 +1,6 @@
 #    -*- coding: utf-8 -*-
 #    Advanced directory compare tool in Python.
+#
 #    Copyright (C) 2008  Pan Xingzhi
 #    http://code.google.com/p/dircompare/
 #
@@ -68,16 +69,17 @@ def genOnCopy(srcTree):
 
 def onDel(event):
     # TODO multiple del
-    window = wx.Window.FindFocus()
-    if window not in (lTree, rTree):
+    def promptError():
         info('Please select one and only one item to delete.\nDeleting multiple items is not allowed now.',
                 caption='Operation not supported')
+    window = wx.Window.FindFocus()
+    if window not in (lTree, rTree):
+        promptError()
         return
     propName = 'leftFile' if window is lTree else 'rightFile'
     selections = window.GetSelections()
     if len(selections) != 1:
-        info('Please select one and only one item to delete.\nDeleting multiple items is not allowed now.',
-                caption='Operation not supported')
+        promptError()
         return
     for each in selections:
         dataItem = window.GetPyData(each).data
@@ -88,16 +90,17 @@ def onCmp(event):
     # TODO block user actions when comparing files?
     if not path.exists(conf.fileCmpCommand):
         alert('GVim installation not found. Please set it up correctly in configuration.py.')
-    window = wx.Window.FindFocus()
-    if window not in (lTree, rTree):
+    def promptError():
         info('Please select one and only one file item to compare.',
                 caption='Operation not supported')
+    window = wx.Window.FindFocus()
+    if window not in (lTree, rTree):
+        promptError()
         return
     selections = window.GetSelections()
     if len(selections) != 1 or \
             window.GetPyData(selections[0]).data.type is not DataItem.TYPE_FILE:
-        info('Please select one and only one file item to compare.',
-                caption='Operation not supported')
+        promptError()
         return
     for each in selections:
         dataItem = window.GetPyData(each).data
@@ -112,15 +115,16 @@ def onRefreshAll(event):
 
 def onFocus(event):
     window = wx.Window.FindFocus()
-    if window not in (lTree, rTree):
+    def promptError():
         info('Please select a valid folder item to focus.',
                 caption='Operation not supported')
+    if window not in (lTree, rTree):
+        promptError()
         return
     selections = window.GetSelections()
     if len(selections) != 1 or \
             window.GetPyData(selections[0]).data.type is not DataItem.TYPE_DIR:
-        info('Please select a valid folder item to focus.',
-                caption='Operation not supported')
+        promptError()
         return
     for each in selections:
         dataItem = window.GetPyData(each).data
@@ -403,7 +407,7 @@ def bindScrollingHandlers(targetTree, otherTree):
         wx.EVT_SCROLLWIN_BOTTOM, wx.EVT_SCROLLWIN_THUMBTRACK, wx.EVT_SCROLLWIN_THUMBRELEASE,
         wx.EVT_SCROLLBAR, wx.EVT_SCROLL, wx.EVT_MOUSEWHEEL),
         map(genOnScroll,
-            (targetTree, ) * 12, (otherTree, ) * 12, 
+            (targetTree, ) * 12, (otherTree, ) * 12,
             ('SCROLLWIN', 'SCROLLWIN_LINEUP', 'SCROLLWIN_LINEDOWN',
             'SCROLLWIN_PAGEUP', 'SCROLLWIN_PAGEDOWN', 'SCROLLWIN_TOP',
             'SCROLLWIN_BOTTOM', 'SCROLLWIN_THUMBTRACK', 'SCROLLWIN_THUMBRELEASE',

@@ -70,7 +70,8 @@ The status of an item can be:
 |   uncompared             |   Empty value (e.g., None in  |   A special state. When the item      |                                               |
 |                          |   Python, null in Java)       |   exists but the actual folders/files |                                               |
 |                          |                               |   are not compared yet, or when 2     |                                               |
-|                          |                               |   folders/files are both deleted.     |                                               |
+|                          |                               |   folders/files are both deleted/non- |                                               |
+|                          |                               |   existed.                            |                                               |
 |             ~            |                ~              |                   ~                   |                                               |
 |   common, same           |   STATUS_SAME                 |   Two folders are considered same     | D, B, F                                       |
 |                          |                               |   only if                             |                                               |
