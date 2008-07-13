@@ -184,6 +184,7 @@ def onLoad(event):
         try:
             fp = open(loadfile, 'rb')
             session = cPickle.load(fp)
+            fp.close()
             cfmdlg = view.SessionDialog('Load', session)
             if cfmdlg.ShowModal() == wx.ID_OK:
                 global cmpSession
@@ -272,15 +273,25 @@ class PyData(object):
 def startCmp(session):
     leftPath, rightPath, ignore = \
             session.leftPath, session.rightPath, session.ignore
-    # check path
-    if not (path.isdir(leftPath) and path.isdir(rightPath)):
-        msg = 'Invalid given path(s).'
-        alert(msg)
-        return
 
     # start comparison
     global rootDataItem
-    rootDataItem = model.start(leftPath, rightPath, ignore)
+    msg = 'Invalid given path(s).'
+    if not path.isdir(leftPath) or not path.isdir(rightPath):
+        alert(msg)
+        return
+    rootDataItem = DataItem('', leftPath, rightPath)
+    rootDataItem.type = DataItem.TYPE_DIR
+    # special treatment: starting dirs are seen as common dirs
+    # we cannot call .decideStatus() here
+    # because starting dirs may have different names
+    # they are considered as not common by .decideStatus
+    rootDataItem.compareCommonDirs(ignore=ignore)
+    if rootDataItem.status in (DataItem.STATUS_COMMON_BOTH_UNKNOWN, 
+            DataItem.STATUS_COMMON_LEFT_UNKNOWN, DataItem.STATUS_COMMON_RIGHT_UNKNOWN):
+        alert(msg)
+        return
+
     drawNodes(rootDataItem.children, lRoot, rRoot)
     pyData = PyData(rootDataItem, lRoot, rRoot)
     lTree.SetPyData(lRoot, pyData)
