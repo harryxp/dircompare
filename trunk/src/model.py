@@ -19,6 +19,7 @@
 
 import os
 import os.path as path
+import sys
 import filecmp
 import subprocess as subp
 import shutil
@@ -112,17 +113,21 @@ class DataItem(object):
 #    def refresh(self):
 #        if 
 
-    # sub items initializers
-    def initChildrenItems(self, ignore=[]):
+    # status calculator
+    def decideStatus(self):
+        if self.leftFileExists and self.rightFileExists:
+            pass
+
+    def compareCommonDirs(self, ignore=[]):
         """Returns the status and children of current (dir) DataItem instance being calculated."""
         if not isinstance(ignore, (list, )):
             raise ValueError('ignore must be an instance of <type \'list\'>.')
 
         if self.type is not DataItem.TYPE_DIR:
-            raise TypeError, 'method <initChildrenItems> is only available to directories'
+            raise TypeError, 'method <compareCommonDirs> is only available to directories'
 
         # decide if self is one of <STATUS_COMMON_BOTH_UNKNOWN, STATUS_COMMON_LEFT_UNKNOWN, STATUS_COMMON_RIGHT_UNKNOWN>
-        self.__decideItemCommonUnknown()
+        self.__decideUnknownWhenCommon()
         # TODO do more, deal with STATUS_COMMON_LEFT_UNKNOWN and STATUS_COMMON_RIGHT_UNKNOWN.
         if self.status:
             return
@@ -150,7 +155,7 @@ class DataItem(object):
         # deal with 'one side only' items
         self.children = []
 
-        map(self.__initOneSideItems,
+        map(self.__initOneSideSubItems,
                 (lOnlyFolders, rOnlyFolders, lOnlyFiles, rOnlyFiles),
                 (DataItem.TYPE_DIR, DataItem.TYPE_DIR, DataItem.TYPE_FILE, DataItem.TYPE_FILE),
                 (DataItem.STATUS_LEFT_ONLY, DataItem.STATUS_RIGHT_ONLY) * 2,
@@ -158,8 +163,8 @@ class DataItem(object):
                 (ignore, ) * 4)
 
         # deal with 'common' items
-        self.__initCommonItems(commonFolders, DataItem.TYPE_DIR, ignore)
-        self.__initCommonItems(commonFiles, DataItem.TYPE_FILE, ignore)
+        self.__initCommonSubItems(commonFolders, DataItem.TYPE_DIR, ignore)
+        self.__initCommonSubItems(commonFiles, DataItem.TYPE_FILE, ignore)
 
         # status of current dir comparison
         if [itm for itm in self.children if itm.status is not DataItem.STATUS_SAME]:
@@ -169,7 +174,7 @@ class DataItem(object):
 
         self.children.sort()
 
-    def __decideItemCommonUnknown(self):
+    def __decideUnknownWhenCommon(self):
         """Decides if self.leftFile and self.rightFile are in 'uncomparable' state."""
         lComparable, rComparable = _isComparable(self.leftFile), _isComparable(self.rightFile)
 
@@ -184,7 +189,7 @@ class DataItem(object):
             self.children = []
             self.status = DataItem.STATUS_COMMON_RIGHT_UNKNOWN
 
-    def __initOneSideItems(self, names, type, status, badStatus, ignore=[]):
+    def __initOneSideSubItems(self, names, type, status, badStatus, ignore=[]):
         """Recursively creates DataItem objects for given dir with given status."""
         baseDir = self.leftFile if status is DataItem.STATUS_LEFT_ONLY else self.rightFile
         for each in names:
@@ -195,26 +200,27 @@ class DataItem(object):
             if _isComparable(path.join(baseDir, each)):
                 itm.status = status
                 if type is DataItem.TYPE_DIR:
+                    # recursive call when <names> are dirs
                     itm.children = []
                     newBaseDir = itm.leftFile if status is DataItem.STATUS_LEFT_ONLY else itm.rightFile
                     shortNames = set(_filter(os.listdir(newBaseDir), ignore))
                     folders = set(name for name in shortNames if path.isdir(path.join(newBaseDir, name)))
                     files = shortNames.difference(folders)
-                    itm.__initOneSideItems(folders, DataItem.TYPE_DIR, status, badStatus, ignore)
-                    itm.__initOneSideItems(files, DataItem.TYPE_FILE, status, badStatus, ignore)
+                    itm.__initOneSideSubItems(folders, DataItem.TYPE_DIR, status, badStatus, ignore)
+                    itm.__initOneSideSubItems(files, DataItem.TYPE_FILE, status, badStatus, ignore)
             else:
                 itm.status = badStatus
             self.children.append(itm)
 
-    def __initCommonItems(self, names, type, ignore):
+    def __initCommonSubItems(self, names, type, ignore):
         """Creates DataItems that are common on both sides."""
         for each in names:
             itm = DataItem(each, self.leftFile, self.rightFile)
             itm.type, itm.parent = type, self
             if type is DataItem.TYPE_DIR:
-                itm.initChildrenItems(ignore)
+                itm.compareCommonDirs(ignore)
             else:
-                itm.__decideItemCommonUnknown()
+                itm.__decideUnknownWhenCommon()
                 if not itm.status:
                     itm.status = DataItem.STATUS_SAME \
                             if filecmp.cmp(itm.leftFile, itm.rightFile, shallow=conf.shallow) else \
@@ -257,7 +263,6 @@ class DataItem(object):
             self.status = None
 
     def browse(self, propName):
-        import sys
         if sys.platform == 'win32':
             if getattr(self, propName + 'Exists'):
                 if self.type is self.TYPE_DIR:
@@ -318,22 +323,10 @@ class DataItem(object):
                          'children: ', `self.children`, ']'))
 
 class CompareSession(object):
-
     def __init__(self, leftPath='', rightPath='', ignore=[]):
         self.leftPath = leftPath
         self.rightPath = rightPath
         self.ignore = ignore
-
-##############################
-# start                      #
-##############################
-def start(dir1, dir2, ignore=[]):
-    """Accepts 2 strings representing directories."""
-    rootDataItem = DataItem('', dir1, dir2)
-    rootDataItem.type = DataItem.TYPE_DIR
-    rootDataItem.initChildrenItems(ignore=ignore)
-    return rootDataItem
-
 
 ##############################
 # helpers                    #
@@ -364,4 +357,18 @@ def _isComparable(filename):
 
 def _filter(filelist, skip):
     return list(itertools.ifilterfalse(skip.__contains__, filelist))
+
+# TODO command line usage: generate report
+# K:\DirCompare\trunk\src>python model.py ..\..\sandbox\leftDir ..\..\sandbox\rightDir
+if __name__ == '__main__':
+    DataItem.updateUI = lambda self: None
+    try:
+        leftPath, rightPath = sys.argv[1], sys.argv[2] 
+    except IndexError, e:
+        print "Usage: python model.py leftPath rightPath"
+        sys.exit(1)
+    rootDataItem = DataItem('', leftPath, rightPath)
+    rootDataItem.type = DataItem.TYPE_DIR
+    rootDataItem.compareCommonDirs()
+    print rootDataItem
 
