@@ -38,7 +38,7 @@ allDirs = [leftDir, rightDir]
 # files to be created
 allFiles = []
 
-def createSub(baseDir, level=2, subDirPrefix='sub', subDirPerLevel=3, filePrefix='f', filePerLevel=4):
+def createSub(baseDir, level=3, subDirPrefix='sub', subDirPerLevel=3, filePrefix='f', filePerLevel=4):
     """Creates sub dirs and files for given base dir.
     Needs global vars: allDirs, allFiles."""
 
