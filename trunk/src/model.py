@@ -52,6 +52,8 @@ class DataItem(object):
     STATUS_LEFT_ONLY_UNKNOWN = 'left only unknown'
     STATUS_RIGHT_ONLY_UNKNOWN = 'right only unknown'
 
+    ignore = []
+
     def onStatusRead(self):
         return self.__status
     def onStatusChange(self, newStatus):
@@ -110,13 +112,24 @@ class DataItem(object):
         self.leftLocation = leftLocation
         self.rightLocation = rightLocation
 
-#    def refresh(self):
-#        if 
-
     # status calculator
-    def decideStatus(self):
+    def decideStatus(self, ignore=[]):
         if self.leftFileExists and self.rightFileExists:
-            pass
+            self.compareCommonDirs(ignore)
+        elif self.leftFileExists:
+            self.parent.__initOneSideSubItems(
+                    (self.filename, ),
+                    self.type,
+                    DataItem.STATUS_LEFT_ONLY,
+                    DataItem.STATUS_LEFT_ONLY_UNKNOWN,
+                    ignore=self.ignore)
+        elif self.rightFileExists:
+            self.parent.__initOneSideSubItems(
+                    (self.filename, ),
+                    self.type,
+                    DataItem.STATUS_RIGHT_ONLY,
+                    DataItem.STATUS_RIGHT_ONLY_UNKNOWN,
+                    ignore=self.ignore)
 
     def compareCommonDirs(self, ignore=[]):
         """Returns the status and children of current (dir) DataItem instance being calculated."""
@@ -126,10 +139,12 @@ class DataItem(object):
         if self.type is not DataItem.TYPE_DIR:
             raise TypeError, 'method <compareCommonDirs> is only available to directories'
 
+        self.ignore = ignore
+
         # decide if self is one of <STATUS_COMMON_BOTH_UNKNOWN, STATUS_COMMON_LEFT_UNKNOWN, STATUS_COMMON_RIGHT_UNKNOWN>
-        self.__decideUnknownWhenCommon()
         # TODO do more, deal with STATUS_COMMON_LEFT_UNKNOWN and STATUS_COMMON_RIGHT_UNKNOWN.
-        if self.status:
+        
+        if self.__decideUnknownWhenCommon():
             return
 
         # get necessary sets: commonFolders, commonFiles, lOnlyFolders, lOnlyFiles, rOnlyFolders, rOnlyFiles
@@ -188,6 +203,9 @@ class DataItem(object):
         elif not rComparable:
             self.children = []
             self.status = DataItem.STATUS_COMMON_RIGHT_UNKNOWN
+        else:
+            return False
+        return True
 
     def __initOneSideSubItems(self, names, type, status, badStatus, ignore=[]):
         """Recursively creates DataItem objects for given dir with given status."""
@@ -212,6 +230,8 @@ class DataItem(object):
                 itm.status = badStatus
             self.children.append(itm)
 
+        self.children.sort()
+
     def __initCommonSubItems(self, names, type, ignore):
         """Creates DataItems that are common on both sides."""
         for each in names:
@@ -220,31 +240,22 @@ class DataItem(object):
             if type is DataItem.TYPE_DIR:
                 itm.compareCommonDirs(ignore)
             else:
-                itm.__decideUnknownWhenCommon()
-                if not itm.status:
+                if not itm.__decideUnknownWhenCommon():
                     itm.status = DataItem.STATUS_SAME \
                             if filecmp.cmp(itm.leftFile, itm.rightFile, shallow=conf.shallow) else \
                             DataItem.STATUS_DIFF
             self.children.append(itm)
 
     # operations
-    def copyTo(self, src, dest):
+    def copyTo(self, srcSide, destSide):
         # copy/copytree
         # change left/right location
         # change self status
         # change parent status...pass up
         if self.status not in (DataItem.STATUS_DIFF, DataItem.STATUS_LEFT_ONLY, DataItem.STATUS_RIGHT_ONLY):
             logging.info('copy operation on ' + str(self) + ' not executed.')
-        srcLocation = getattr(self, src)
-        if srcLocation:
-            src = path.join(srcLocation, self.filename)
-        else:
-            src = path.join(getattr(self.parent, src))
-        destLocation = getattr(self, dest)
-        if destLocation:
-            dest = path.join(destLocation, self.filename)
-        else:
-            dest = path.join(getattr(self.parent, dest))
+        src = getattr(self, srcSide + 'File')
+        dest = getattr(self, destSide + 'File')
 
         copycmd = shutil.copytree if self.type is DataItem.TYPE_DIR else shutil.copy
         copycmd(src, dest)
@@ -252,23 +263,28 @@ class DataItem(object):
         # and eventually, 'notifyChildUpdate'
         self.status = DataItem.STATUS_SAME
 
-    def delete(self, propName):
+    def delete(self, side):
         delcmd = shutil.rmtree if self.type is DataItem.TYPE_DIR else os.remove
-        delcmd(getattr(self, propName))
+        target = getattr(self, side + 'File')
+        if getattr(self, side + 'FileExists'):
+            delcmd(target)
         if self.leftFileExists:
             self.status = DataItem.STATUS_LEFT_ONLY
         elif self.rightFileExists:
             self.status = DataItem.STATUS_RIGHT_ONLY
         else:
             self.status = None
+        if self.type is DataItem.TYPE_DIR:
+            for each in self.children:
+                each.delete(side)
 
-    def browse(self, propName):
+    def browse(self, side):
         if sys.platform == 'win32':
-            if getattr(self, propName + 'Exists'):
+            if getattr(self, side + 'FileExists'):
                 if self.type is self.TYPE_DIR:
-                    subp.Popen(('explorer.exe', '/n,/e,', path.normpath(getattr(self, propName))))
+                    subp.Popen(('explorer.exe', '/n,/e,', path.normpath(getattr(self, side + 'File'))))
                 elif self.type is self.TYPE_FILE:
-                    subp.Popen(('explorer.exe', '/n,/e,/select,', path.normpath(getattr(self, propName))))
+                    subp.Popen(('explorer.exe', '/n,/e,/select,', path.normpath(getattr(self, side + 'File'))))
 
     def compareFiles(self):
         """only available to non-directories"""
@@ -284,12 +300,7 @@ class DataItem(object):
         """only available to directories"""
         if self.type is not DataItem.TYPE_DIR:
             raise TypeError, 'method <notifyChildUpdate> is only available to directories'
-#        if self.status is DataItem.STATUS_DIFF and child.status is DataItem.STATUS_SAME:
-#            for each in self.children:
-#                if each.status is not DataItem.STATUS_SAME:
-#                    return
-#            # this will trigger 'onPropertyChange'
-#            self.status = DataItem.STATUS_SAME
+        self.decideStatus(self.ignore)
 
     # overrides
     def __cmp__(self, o):
@@ -319,8 +330,8 @@ class DataItem(object):
                          'type: ', replaceNone(self.type), ', ',
                          'status: ', replaceNone(self.status), ', ',
                          'leftLocation: ', replaceNone(self.leftLocation), ', ',
-                         'rightLocation: ', replaceNone(self.rightLocation), ', ',
-                         'children: ', `self.children`, ']'))
+                         'rightLocation: ', replaceNone(self.rightLocation), ', '))
+#                         'children: ', `self.children`, ']'))
 
 class CompareSession(object):
     def __init__(self, leftPath='', rightPath='', ignore=[]):

@@ -60,31 +60,32 @@ def genOnCopy(srcTree):
             return
         for each in selections:
             dataItem = srcTree.GetPyData(each).data
-            src, dest = 'leftLocation' if srcTree is lTree else 'rightLocation', \
-                        'leftLocation' if srcTree is rTree else 'rightLocation'
+            srcSide, destSide = 'left' if srcTree is lTree else 'right', \
+                                'left' if srcTree is rTree else 'right'
             # TODO catch exceptions
-            dataItem.copyTo(src, dest)
+            dataItem.copyTo(srcSide, destSide)
         event.Skip()
     return onCopy
 
 def onDel(event):
     # TODO multiple del
     def promptError():
-        info('Please select one and only one item to delete.\nDeleting multiple items is not allowed now.',
-                caption='Operation not supported')
+#        info('Please select one and only one item to delete.\nDeleting multiple items is not allowed now.',
+#                caption='Operation not supported')
+        info('Please select items to delete.', caption='Operation not supported')
     window = wx.Window.FindFocus()
     if window not in (lTree, rTree):
         promptError()
         return
-    propName = 'leftFile' if window is lTree else 'rightFile'
+    side = 'left' if window is lTree else 'right'
     selections = window.GetSelections()
-    if len(selections) != 1:
-        promptError()
-        return
+#    if len(selections) != 1:
+#        promptError()
+#        return
     for each in selections:
         dataItem = window.GetPyData(each).data
         # TODO catch exceptions
-        dataItem.delete(propName)
+        dataItem.delete(side)
 
 def onCmp(event):
     # TODO block user actions when comparing files?
@@ -139,10 +140,10 @@ def onBrowse(event):
         info('Please select a valid item to browse.',
                 caption='Operation not supported')
         return
-    propName = 'leftFile' if window is lTree else 'rightFile'
+    side = 'left' if window is lTree else 'right'
     for each in window.GetSelections():
         dataItem = window.GetPyData(each).data
-        dataItem.browse(propName)
+        dataItem.browse(side)
 
 def onNew(event):
     dlg = view.SessionDialog('New')
@@ -301,7 +302,7 @@ def startCmp(session):
     lTextCtrl.SetValue(path.normpath(leftPath))
     rTextCtrl.SetValue(path.normpath(rightPath))
 
-def figureTreeItemStyle(dataItem):
+def computeTreeItemStyle(dataItem):
     # TODO more styles for "uncomparable"s
     dirFlag = dataItem.type is DataItem.TYPE_DIR
     if dataItem.status is DataItem.STATUS_LEFT_ONLY:
@@ -351,14 +352,20 @@ def updateTreeItemPairUI(dataItem):
         rTree.Delete(rTreeItem)
         return
 
-    lText, lTreeItemStyle, rText, rTreeItemStyle = figureTreeItemStyle(dataItem)
+    lText, lTreeItemStyle, rText, rTreeItemStyle = computeTreeItemStyle(dataItem)
 
     def updateTreeItemUI(tree, treeItem, text, treeItemStyle):
         tree.SetItemText(treeItem, text)
         tree.SetItemTextColour(treeItem, treeItemStyle.color)
         tree.SetItemBackgroundColour(treeItem, treeItemStyle.bgColor)
-        for icon in treeItemStyle.icons:
-            tree.SetItemImage(treeItem, *icon)
+        if treeItemStyle.icons:
+            for icon in treeItemStyle.icons:
+                tree.SetItemImage(treeItem, *icon)
+        else:
+            # remove the item images
+            tree.SetItemImage(treeItem, -1, wx.TreeItemIcon_Normal)
+            tree.SetItemImage(treeItem, -1, wx.TreeItemIcon_Selected)
+            tree.SetItemImage(treeItem, -1, wx.TreeItemIcon_Expanded)
 
     updateTreeItemUI(lTree, lTreeItem, lText, lTreeItemStyle)
     updateTreeItemUI(rTree, rTreeItem, rText, rTreeItemStyle)
