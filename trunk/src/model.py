@@ -116,77 +116,53 @@ class DataItem(object):
         self.leftLocation = leftLocation
         self.rightLocation = rightLocation
 
-    # status calculator
-    def decideDirItemStatus(self, ignore=()):
-        self.ignore = ignore
-
-        if self.leftFileExists and self.rightFileExists:
-            self.__compareCommonDirs(ignore)
-        elif self.leftFileExists:
-            self.parent.__initOneSideItems(
-                    (self.filename, ),
-                    DataItem.TYPE_DIR,
-                    DataItem.STATUS_LEFT_ONLY,
-                    DataItem.STATUS_LEFT_ONLY_UNKNOWN,
-                    self.ignore)
-        elif self.rightFileExists:
-            self.parent.__initOneSideItems(
-                    (self.filename, ),
-                    DataItem.TYPE_DIR,
-                    DataItem.STATUS_RIGHT_ONLY,
-                    DataItem.STATUS_RIGHT_ONLY_UNKNOWN,
-                    self.ignore)
-        else:
-            self.status = None
-
-    def __compareCommonDirs(self, ignore=()):
+    def compareCommonDirs(self, ignore=()):
         """Returns the status and children of current (dir) DataItem instance being calculated."""
         if not isinstance(ignore, (tuple, )):
             raise ValueError('ignore must be an instance of <type \'tuple\'>.')
 
         if self.type is not DataItem.TYPE_DIR:
-            raise TypeError, 'method <__compareCommonDirs> is only available to directories'
+            raise TypeError, 'method <compareCommonDirs> is only available to directories'
 
-        if not self.children:
-            # decide if self is one of <STATUS_COMMON_BOTH_UNKNOWN, STATUS_COMMON_LEFT_UNKNOWN, STATUS_COMMON_RIGHT_UNKNOWN>
-            # TODO do more, deal with STATUS_COMMON_LEFT_UNKNOWN and STATUS_COMMON_RIGHT_UNKNOWN.
-            
-            if self.__decideUnknownWhenCommon():
-                return
+        # decide if self is one of <STATUS_COMMON_BOTH_UNKNOWN, STATUS_COMMON_LEFT_UNKNOWN, STATUS_COMMON_RIGHT_UNKNOWN>
+        # TODO do more, deal with STATUS_COMMON_LEFT_UNKNOWN and STATUS_COMMON_RIGHT_UNKNOWN.
+        
+        if self.__decideUnknownWhenCommon():
+            return
 
-            # get necessary sets: commonFolders, commonFiles, lOnlyFolders, lOnlyFiles, rOnlyFolders, rOnlyFiles
-            # lFolders, rFolders, lFiles, rFiles, commonFolders, commonFiles,
-            # lOnlyFolders, rOnlyFolders, lOnlyFiles, rOnlyFiles are all short names
-            lShortNames, rShortNames = \
-                set(_filter(os.listdir(self.leftFile), ignore)), \
-                set(_filter(os.listdir(self.rightFile), ignore))
+        # get necessary sets: commonFolders, commonFiles, lOnlyFolders, lOnlyFiles, rOnlyFolders, rOnlyFiles
+        # lFolders, rFolders, lFiles, rFiles, commonFolders, commonFiles,
+        # lOnlyFolders, rOnlyFolders, lOnlyFiles, rOnlyFiles are all short names
+        lShortNames, rShortNames = \
+            set(_filter(os.listdir(self.leftFile), ignore)), \
+            set(_filter(os.listdir(self.rightFile), ignore))
 
-            # seperate folders from files
-            lFolders, rFolders = \
-                set(name for name in lShortNames if path.isdir(path.join(self.leftFile, name))), \
-                set(name for name in rShortNames if path.isdir(path.join(self.rightFile, name)))
-            lFiles, rFiles = lShortNames.difference(lFolders), rShortNames.difference(rFolders)
-            # common
-            commonFolders = lFolders.intersection(rFolders)
-            commonFiles = lFiles.intersection(rFiles)
-            # one side
-            lOnlyFolders, rOnlyFolders, lOnlyFiles, rOnlyFiles = map(set.difference,
-                    (lFolders, rFolders, lFiles, rFiles),
-                    (commonFolders, commonFolders, commonFiles, commonFiles))
+        # seperate folders from files
+        lFolders, rFolders = \
+            set(name for name in lShortNames if path.isdir(path.join(self.leftFile, name))), \
+            set(name for name in rShortNames if path.isdir(path.join(self.rightFile, name)))
+        lFiles, rFiles = lShortNames.difference(lFolders), rShortNames.difference(rFolders)
+        # common
+        commonFolders = lFolders.intersection(rFolders)
+        commonFiles = lFiles.intersection(rFiles)
+        # one side
+        lOnlyFolders, rOnlyFolders, lOnlyFiles, rOnlyFiles = map(set.difference,
+                (lFolders, rFolders, lFiles, rFiles),
+                (commonFolders, commonFolders, commonFiles, commonFiles))
 
-            # deal with 'one side only' items
-            self.children = []
+        # deal with 'one side only' items
+        self.children = []
 
-            map(self.__initOneSideItems,
-                    (lOnlyFolders, rOnlyFolders, lOnlyFiles, rOnlyFiles),
-                    (DataItem.TYPE_DIR, DataItem.TYPE_DIR, DataItem.TYPE_FILE, DataItem.TYPE_FILE),
-                    (DataItem.STATUS_LEFT_ONLY, DataItem.STATUS_RIGHT_ONLY) * 2,
-                    (DataItem.STATUS_LEFT_ONLY_UNKNOWN, DataItem.STATUS_RIGHT_ONLY_UNKNOWN) * 2,
-                    (ignore, ) * 4)
+        map(self.__initOneSideItems,
+                (lOnlyFolders, rOnlyFolders, lOnlyFiles, rOnlyFiles),
+                (DataItem.TYPE_DIR, DataItem.TYPE_DIR, DataItem.TYPE_FILE, DataItem.TYPE_FILE),
+                (DataItem.STATUS_LEFT_ONLY, DataItem.STATUS_RIGHT_ONLY) * 2,
+                (DataItem.STATUS_LEFT_ONLY_UNKNOWN, DataItem.STATUS_RIGHT_ONLY_UNKNOWN) * 2,
+                (ignore, ) * 4)
 
-            # deal with 'common' items
-            self.__initCommonSubItems(commonFolders, DataItem.TYPE_DIR, ignore)
-            self.__initCommonSubItems(commonFiles, DataItem.TYPE_FILE, ignore)
+        # deal with 'common' items
+        self.__initCommonSubItems(commonFolders, DataItem.TYPE_DIR, ignore)
+        self.__initCommonSubItems(commonFiles, DataItem.TYPE_FILE, ignore)
 
         # status of current dir comparison
         if [itm for itm in self.children if itm.status is not DataItem.STATUS_SAME]:
@@ -248,7 +224,7 @@ class DataItem(object):
             itm = DataItem(each, self.leftFile, self.rightFile)
             itm.type, itm.parent = type, self
             if type is DataItem.TYPE_DIR:
-                itm.__compareCommonDirs(ignore)
+                itm.compareCommonDirs(ignore)
             else:
                 if not itm.__decideUnknownWhenCommon():
                     itm.status = DataItem.STATUS_SAME \
@@ -283,7 +259,6 @@ class DataItem(object):
             if not getattr(self, destSide + 'FileExists'):
                 # copy only when the dest directory is not there
                 copycmd(src, dest)
-                # TODO do this or call decideDirItemStatus?
                 for each in self.children:
                     each.status = DataItem.STATUS_SAME
             else:
@@ -337,8 +312,14 @@ class DataItem(object):
         """only available to directories"""
         if self.type is not DataItem.TYPE_DIR:
             raise TypeError, 'method <notifyChildUpdate> is only available to directories'
-        print self.filename + ' notified'
-        self.decideDirItemStatus(self.ignore)
+        logging.debug(self.filename + ' notified')
+        if child.status is None:
+            self.children.remove(child)
+        # decide self status. children all have correct status at this moment
+        if [itm for itm in self.children if itm.status is not DataItem.STATUS_SAME]:
+            self.status = DataItem.STATUS_DIFF
+        else:
+            self.status = DataItem.STATUS_SAME
 
     # overrides
     def __cmp__(self, o):
@@ -351,10 +332,6 @@ class DataItem(object):
             else:
                 return 1
         return cmp(self.filename.lower(), (o.filename.lower()))
-
-#    def __lt__(self, o):
-#        """Used by list.sort(). Ignores case."""
-#        return self.filename.lower().__le__(o.lower())
 
     def __repr__(self):
         """Used when in a list or tuple.
@@ -418,6 +395,6 @@ if __name__ == '__main__':
         sys.exit(1)
     rootDataItem = DataItem('', leftPath, rightPath)
     rootDataItem.type = DataItem.TYPE_DIR
-    rootDataItem.decideDirItemStatus()
+    rootDataItem.compareCommonDirs()
     print rootDataItem
 

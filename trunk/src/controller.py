@@ -17,7 +17,9 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
 import os.path as path
+import cPickle
 
 ##############################
 # event handlers             #
@@ -156,7 +158,6 @@ def onNew(event):
     dlg.Destroy()
 
 def onSave(event):
-    import os, cPickle
     try:
         cmpSession
     except NameError:
@@ -175,25 +176,27 @@ def onSave(event):
     cfmdlg.Destroy()
 
 def onLoad(event):
-    import os, cPickle
     wildcard = 'DirCompare Session (*.dcs)|*.dcs|' \
                'All files (*.*)|*.*'
     loadfile = wx.FileSelector('Open a session file', default_path=os.getcwd(),
             wildcard=wildcard, flags=wx.OPEN)
     if loadfile:
-        try:
-            fp = open(loadfile, 'rb')
-            session = cPickle.load(fp)
-            fp.close()
-            cfmdlg = view.SessionDialog('Load', session)
-            if cfmdlg.ShowModal() == wx.ID_OK:
-                global cmpSession
-                cmpSession = session
-                startCmp(cmpSession)
-            cfmdlg.Destroy()
-        # TODO see Python Lib Ref 13.1.3, more exceptions can be thrown here
-        except (IOError, cPickle.UnpicklingError):
-            alert('Invalid session file.')
+        loadSessionFromFile(loadfile)
+
+def loadSessionFromFile(loadfile):
+    try:
+        fp = open(loadfile, 'rb')
+        session = cPickle.load(fp)
+        fp.close()
+        cfmdlg = view.SessionDialog('Load', session)
+        if cfmdlg.ShowModal() == wx.ID_OK:
+            global cmpSession
+            cmpSession = session
+            startCmp(cmpSession)
+        cfmdlg.Destroy()
+    # TODO see Python Lib Ref 13.1.3, more exceptions can be thrown here
+    except (IOError, cPickle.UnpicklingError):
+        alert('Invalid session file.')
 
 def onAbout(event):
     aboutinfo = wx.AboutDialogInfo()
@@ -282,7 +285,7 @@ def startCmp(session):
         return
     rootDataItem = DataItem('', leftPath, rightPath)
     rootDataItem.type = DataItem.TYPE_DIR
-    rootDataItem.decideDirItemStatus(ignore)
+    rootDataItem.compareCommonDirs(ignore)
     if rootDataItem.status in (DataItem.STATUS_COMMON_BOTH_UNKNOWN, 
             DataItem.STATUS_COMMON_LEFT_UNKNOWN, DataItem.STATUS_COMMON_RIGHT_UNKNOWN):
         alert(msg)
@@ -331,16 +334,14 @@ def drawNodes(dataItems, lParent, rParent):
         lTreeItem = lTree.AppendItem(lParent, '')
         rTreeItem = rTree.AppendItem(rParent, '')
 
-        pyData = PyData(dataItem, lTreeItem, rTreeItem)
-        dataItem.pyData = pyData
+        updateTreeItemPairUI(dataItem, lTreeItem, rTreeItem)
 
-        lTree.SetPyData(lTreeItem, pyData)
-        rTree.SetPyData(rTreeItem, pyData)
+def updateTreeItemPairUI(dataItem, lTreeItem, rTreeItem):
+    pyData = PyData(dataItem, lTreeItem, rTreeItem)
+    dataItem.pyData = pyData
 
-        updateTreeItemPairUI(dataItem)
-
-def updateTreeItemPairUI(dataItem):
-    lTreeItem, rTreeItem = dataItem.pyData.lTreeItem, dataItem.pyData.rTreeItem
+    lTree.SetPyData(lTreeItem, pyData)
+    rTree.SetPyData(rTreeItem, pyData)
 
     if not dataItem.status:
         lTree.Delete(lTreeItem)
@@ -368,7 +369,7 @@ def updateTreeItemPairUI(dataItem):
 def updateUI(self):
     """Listener on the model."""
     try:
-        updateTreeItemPairUI(self)
+        updateTreeItemPairUI(self, self.pyData.lTreeItem, self.pyData.rTreeItem)
     except AttributeError:
         pass
 
@@ -440,6 +441,10 @@ map(frame.Bind, (wx.EVT_MENU, ) * 12,
          frame.btn_cmp, frame.btn_rfsh_all, frame.btn_fcs, frame.btn_brws,
          frame.btn_new, frame.btn_save, frame.btn_load,
          frame.btn_abt, frame.btn_hlp))
+
+import sys
+if __name__ == '__main__' and len(sys.argv) == 2:
+    loadSessionFromFile(sys.argv[1])
 
 view.show()
 
