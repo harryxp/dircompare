@@ -41,6 +41,7 @@ The attributes of DataItem are:
     rightFile [property, r]
     leftFileExists [property, r]
     rightFileExists [property, r]
+    ignore
 <callables>
     __init__
     initChildrenItems
