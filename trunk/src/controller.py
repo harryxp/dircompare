@@ -55,7 +55,7 @@ def genOnCopy(srcTree):
     def onCopy(event):
         selections = srcTree.GetSelections()
         if len(selections) != 1:
-            info('Please select one and only one item to copy.\nCopying multiple items is not allowed now.',
+            info('Please select one and only one valid item to copy.\nCopying multiple items is not allowed now.',
                     caption='Operation not supported')
             return
         for each in selections:
@@ -70,18 +70,17 @@ def genOnCopy(srcTree):
 def onDel(event):
     # TODO multiple del
     def promptError():
-#        info('Please select one and only one item to delete.\nDeleting multiple items is not allowed now.',
-#                caption='Operation not supported')
-        info('Please select items to delete.', caption='Operation not supported')
+        info('Please select one and only one valid item to delete.\nDeleting multiple items is not allowed now.',
+                caption='Operation not supported')
     window = wx.Window.FindFocus()
     if window not in (lTree, rTree):
         promptError()
         return
     side = 'left' if window is lTree else 'right'
     selections = window.GetSelections()
-#    if len(selections) != 1:
-#        promptError()
-#        return
+    if len(selections) != 1:
+        promptError()
+        return
     for each in selections:
         dataItem = window.GetPyData(each).data
         # TODO catch exceptions
@@ -150,7 +149,7 @@ def onNew(event):
     if dlg.ShowModal() == wx.ID_OK:
         leftPath, rightPath, ignore = \
                 dlg.leftText.GetValue(), dlg.rightText.GetValue(), \
-                [ign.strip() for ign in dlg.ignoreText.GetValue().split(',')]
+                tuple(ign.strip() for ign in dlg.ignoreText.GetValue().split(','))
         global cmpSession
         cmpSession = model.CompareSession(leftPath, rightPath, ignore)
         startCmp(cmpSession)
@@ -283,11 +282,7 @@ def startCmp(session):
         return
     rootDataItem = DataItem('', leftPath, rightPath)
     rootDataItem.type = DataItem.TYPE_DIR
-    # special treatment: starting dirs are seen as common dirs
-    # we cannot call .decideStatus() here
-    # because starting dirs may have different names
-    # they are considered as not common by .decideStatus
-    rootDataItem.compareCommonDirs(ignore=ignore)
+    rootDataItem.decideDirItemStatus(ignore)
     if rootDataItem.status in (DataItem.STATUS_COMMON_BOTH_UNKNOWN, 
             DataItem.STATUS_COMMON_LEFT_UNKNOWN, DataItem.STATUS_COMMON_RIGHT_UNKNOWN):
         alert(msg)
