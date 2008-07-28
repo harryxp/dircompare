@@ -24,7 +24,6 @@ oneSideTextColor = 'blue'
 oneSideBgColor = 'light blue'
 diffTextColor = 'red'
 diffBgColor = 'pink'
-ignore = ['.svn']
 loggingLevel = 'logging.DEBUG'
 logFile = 'DirCompare.log'
 # e.g, fileCmpCommand = 'C:\\Program Files\\Vim\\vim71\\gvim.exe'

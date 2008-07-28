@@ -27,62 +27,59 @@ import cPickle
 def genOnItemActivated(srcTree, otherTree):
     """Generates closures as handlers on tree item activated."""
     def onItemActivated(event):
+        event.Skip()
         srcTreeItem = event.GetItem()
         pyData = srcTree.GetPyData(srcTreeItem)
         dataItem, otherTreeItem = pyData.data, pyData.getOtherTreeItem(srcTreeItem)
         if not srcTree.IsExpanded(srcTreeItem):
-            if dataItem.type is DataItem.TYPE_DIR \
-                              and not srcTree.ItemHasChildren(srcTreeItem):
+            if dataItem.isDir() and not srcTree.ItemHasChildren(srcTreeItem):
                 drawNodes(dataItem.children, pyData.lTreeItem, pyData.rTreeItem)
-            elif dataItem.type is DataItem.TYPE_FILE:
+            elif dataItem.isFile():
                 onCmp(event)
             otherTree.Expand(otherTreeItem)
         else:
             otherTree.Collapse(otherTreeItem)
         srcTree.Refresh()
         otherTree.Refresh()
-        event.Skip()
     return onItemActivated
 
 def genOnSelChanged(srcTree, otherTree):
     """Generates closures as handlers on tree item selection changed."""
     def onSelChanged(event):
+        event.Skip()
         if otherTree:
             otherTree.UnselectAll()
     return onSelChanged
 
-def genOnCopy(srcTree):
+def genOnCopy(srcSide, destSide):
     """Generates closures as handlers on copying items from one side to the other."""
-    # TODO multiple copy
     def onCopy(event):
-        selections = srcTree.GetSelections()
-        if len(selections) != 1:
+        # TODO multiple copy
+        event.Skip()
+        def promptError():
             info('Please select one and only one valid item to copy.\nCopying multiple items is not allowed now.',
                     caption='Operation not supported')
-            return
+        window, selections = getSelections(promptError)
         for each in selections:
-            dataItem = srcTree.GetPyData(each).data
-            srcSide, destSide = 'left' if srcTree is lTree else 'right', \
-                                'left' if srcTree is rTree else 'right'
+            dataItem = window.GetPyData(each).data
             # TODO catch exceptions
             dataItem.copyTo(srcSide, destSide)
-        event.Skip()
     return onCopy
 
 def onDel(event):
     # TODO multiple del
+    event.Skip()
     def promptError():
         info('Please select one and only one valid item to delete.\nDeleting multiple items is not allowed now.',
                 caption='Operation not supported')
-    window = wx.Window.FindFocus()
-    if window not in (lTree, rTree):
-        promptError()
-        return
-    side = 'left' if window is lTree else 'right'
-    selections = window.GetSelections()
-    if len(selections) != 1:
-        promptError()
-        return
+    window, selections = getSelections(promptError)
+    if window is lTree:
+        side = 'left'
+    elif window is rTree:
+        side = 'right'
+    else:
+        raise InvalidValueError()
+
     for each in selections:
         dataItem = window.GetPyData(each).data
         # TODO catch exceptions
@@ -90,63 +87,65 @@ def onDel(event):
 
 def onCmp(event):
     # TODO block user actions when comparing files?
+    event.Skip()
     if not path.exists(conf.fileCmpCommand):
         alert('GVim installation not found. Please set it up correctly in configuration.py.')
     def promptError():
         info('Please select one and only one file item to compare.',
                 caption='Operation not supported')
-    window = wx.Window.FindFocus()
-    if window not in (lTree, rTree):
-        promptError()
-        return
-    selections = window.GetSelections()
-    if len(selections) != 1 or \
-            window.GetPyData(selections[0]).data.type is not DataItem.TYPE_FILE:
+    window, selections = getSelections(promptError)
+    if not window.GetPyData(selections[0]).data.isFile():
         promptError()
         return
     for each in selections:
         dataItem = window.GetPyData(each).data
-        dataItem.compareFiles()
+        # TODO catch exceptions
+        dataItem.compare()
 
 def onRefreshAll(event):
+    event.Skip()
     try:
        cmpSession
-       startCmp(cmpSession)
     except NameError:
+        # can't find cmpSession
        alert('Nothing to refresh.')
+    startCmp(cmpSession)
 
 def onFocus(event):
-    window = wx.Window.FindFocus()
+    event.Skip()
     def promptError():
         info('Please select a valid folder item to focus.',
                 caption='Operation not supported')
-    if window not in (lTree, rTree):
-        promptError()
-        return
-    selections = window.GetSelections()
-    if len(selections) != 1 or \
-            window.GetPyData(selections[0]).data.type is not DataItem.TYPE_DIR:
+    window, selections = getSelections(promptError)
+    if not window.GetPyData(selections[0]).data.isDir():
         promptError()
         return
     for each in selections:
         dataItem = window.GetPyData(each).data
         global cmpSession
-        cmpSession = model.CompareSession(dataItem.leftFile, dataItem.rightFile, cmpSession.ignore)
+        cmpSession = model.CompareSession(dataItem.leftFullName, dataItem.rightFullName, cmpSession.ignore)
         startCmp(cmpSession)
 
 def onBrowse(event):
     # TODO multiple browse
+    event.Skip()
     window = wx.Window.FindFocus()
     if window not in (lTree, rTree):
         info('Please select a valid item to browse.',
                 caption='Operation not supported')
         return
-    side = 'left' if window is lTree else 'right'
+    if window is lTree:
+        side = 'left'
+    elif window is rTree:
+        side = 'right'
+    else:
+        raise InvalidValueError()
     for each in window.GetSelections():
         dataItem = window.GetPyData(each).data
         dataItem.browse(side)
 
 def onNew(event):
+    event.Skip()
     dlg = view.SessionDialog('New')
     if dlg.ShowModal() == wx.ID_OK:
         leftPath, rightPath, ignore = \
@@ -158,6 +157,7 @@ def onNew(event):
     dlg.Destroy()
 
 def onSave(event):
+    event.Skip()
     try:
         cmpSession
     except NameError:
@@ -176,6 +176,7 @@ def onSave(event):
     cfmdlg.Destroy()
 
 def onLoad(event):
+    event.Skip()
     wildcard = 'DirCompare Session (*.dcs)|*.dcs|' \
                'All files (*.*)|*.*'
     loadfile = wx.FileSelector('Open a session file', default_path=os.getcwd(),
@@ -199,9 +200,10 @@ def loadSessionFromFile(loadfile):
         alert('Invalid session file.')
 
 def onAbout(event):
+    event.Skip()
     aboutinfo = wx.AboutDialogInfo()
     aboutinfo.SetName('DirCompare')
-    aboutinfo.SetVersion('0.2')
+    aboutinfo.SetVersion('0.21')
     aboutinfo.SetLicense('GNU')
 #    aboutinfo.SetWebSite('https://sourceforge.net/projects/dircompare')
     aboutinfo.SetWebSite('http://code.google.com/p/dircompare')
@@ -209,6 +211,7 @@ def onAbout(event):
     wx.AboutBox(aboutinfo)
 
 def onHelp(event):
+    event.Skip()
     info('Please visit http://code.google.com/p/dircompare \n' +
             '  or send email to vengeance.storm@gmail.com. \n' +
             '                               Thanks!', 'Help')
@@ -273,6 +276,18 @@ class PyData(object):
 ##############################
 # Utilities                  #
 ##############################
+def getSelections(promptError):
+    window = wx.Window.FindFocus()
+    if window not in (lTree, rTree):
+        promptError()
+        return
+    selections = window.GetSelections()
+    if len(selections) != 1:
+        promptError()
+        return
+    else:
+        return window, selections
+
 def startCmp(session):
     leftPath, rightPath, ignore = \
             session.leftPath, session.rightPath, session.ignore
@@ -283,13 +298,8 @@ def startCmp(session):
     if not path.isdir(leftPath) or not path.isdir(rightPath):
         alert(msg)
         return
-    rootDataItem = DataItem('', leftPath, rightPath)
-    rootDataItem.type = DataItem.TYPE_DIR
-    rootDataItem.compareCommonDirs(ignore)
-    if rootDataItem.status in (DataItem.STATUS_COMMON_BOTH_UNKNOWN, 
-            DataItem.STATUS_COMMON_LEFT_UNKNOWN, DataItem.STATUS_COMMON_RIGHT_UNKNOWN):
-        alert(msg)
-        return
+    rootDataItem = DirectoryDataItem('', leftPath, rightPath)
+    rootDataItem.compare(ignore)
 
     drawNodes(rootDataItem.children, lRoot, rRoot)
     pyData = PyData(rootDataItem, lRoot, rRoot)
@@ -301,28 +311,30 @@ def startCmp(session):
     rTextCtrl.SetValue(path.normpath(rightPath))
 
 def computeTreeItemStyle(dataItem):
-    # TODO more styles for "uncomparable"s
-    dirFlag = dataItem.type is DataItem.TYPE_DIR
-    if dataItem.status is DataItem.STATUS_LEFT_ONLY:
-        lText = dataItem.filename
+    # TODO more styles for "unknown"s
+    dirFlag = dataItem.isDir()
+    if dataItem.status is model.STATUS_LEFT_ONLY:
+        lText = dataItem.name
         rText = ''
         lTreeItemStyle = TreeItemStyle.DIR_ONESIDEONLY if dirFlag else TreeItemStyle.FILE_ONESIDEONLY
         rTreeItemStyle = TreeItemStyle.DIR_ABSENT if dirFlag else TreeItemStyle.FILE_ABSENT
-    elif dataItem.status is DataItem.STATUS_RIGHT_ONLY:
+    elif dataItem.status is model.STATUS_RIGHT_ONLY:
         lText = ''
-        rText = dataItem.filename
+        rText = dataItem.name
         lTreeItemStyle = TreeItemStyle.DIR_ABSENT if dirFlag else TreeItemStyle.FILE_ABSENT
         rTreeItemStyle = TreeItemStyle.DIR_ONESIDEONLY if dirFlag else TreeItemStyle.FILE_ONESIDEONLY
-    elif dataItem.status is DataItem.STATUS_SAME:
-        lText = dataItem.filename
-        rText = dataItem.filename
+    elif dataItem.status is model.STATUS_COMMON_SAME:
+        lText = dataItem.name
+        rText = dataItem.name
         lTreeItemStyle = TreeItemStyle.DIR_SAME if dirFlag else TreeItemStyle.FILE_SAME
         rTreeItemStyle = TreeItemStyle.DIR_SAME if dirFlag else TreeItemStyle.FILE_SAME
-    elif dataItem.status is DataItem.STATUS_DIFF:
-        lText = dataItem.filename
-        rText = dataItem.filename
+    elif dataItem.status is model.STATUS_COMMON_DIFF:
+        lText = dataItem.name
+        rText = dataItem.name
         lTreeItemStyle = TreeItemStyle.DIR_DIFF if dirFlag else TreeItemStyle.FILE_DIFF
         rTreeItemStyle = TreeItemStyle.DIR_DIFF if dirFlag else TreeItemStyle.FILE_DIFF
+    else:
+        raise InvalidValueError()
     return lText, lTreeItemStyle, rText, rTreeItemStyle
 
 def drawNodes(dataItems, lParent, rParent):
@@ -334,15 +346,14 @@ def drawNodes(dataItems, lParent, rParent):
         lTreeItem = lTree.AppendItem(lParent, '')
         rTreeItem = rTree.AppendItem(rParent, '')
 
+        pyData = PyData(dataItem, lTreeItem, rTreeItem)
+        dataItem.pyData = pyData
+        lTree.SetPyData(lTreeItem, pyData)
+        rTree.SetPyData(rTreeItem, pyData)
+
         updateTreeItemPairUI(dataItem, lTreeItem, rTreeItem)
 
 def updateTreeItemPairUI(dataItem, lTreeItem, rTreeItem):
-    pyData = PyData(dataItem, lTreeItem, rTreeItem)
-    dataItem.pyData = pyData
-
-    lTree.SetPyData(lTreeItem, pyData)
-    rTree.SetPyData(rTreeItem, pyData)
-
     if not dataItem.status:
         lTree.Delete(lTreeItem)
         rTree.Delete(rTreeItem)
@@ -362,6 +373,8 @@ def updateTreeItemPairUI(dataItem, lTreeItem, rTreeItem):
             tree.SetItemImage(treeItem, -1, wx.TreeItemIcon_Normal)
             tree.SetItemImage(treeItem, -1, wx.TreeItemIcon_Selected)
             tree.SetItemImage(treeItem, -1, wx.TreeItemIcon_Expanded)
+#            map(tree.SetItemImage((treeItem, ) * 3, (-1, ) * 3,
+#                (wx.TreeItemIcon_Normal, wx.TreeItemIcon_Selected, wx.TreeItemIcon_Expanded)))
 
     updateTreeItemUI(lTree, lTreeItem, lText, lTreeItemStyle)
     updateTreeItemUI(rTree, rTreeItem, rText, rTreeItemStyle)
@@ -371,6 +384,7 @@ def updateUI(self):
     try:
         updateTreeItemPairUI(self, self.pyData.lTreeItem, self.pyData.rTreeItem)
     except AttributeError:
+        # some data items don't have pyDatas yet
         pass
 
 def alert(msg, caption='Error'):
@@ -393,6 +407,8 @@ logging.basicConfig(level=eval(conf.loggingLevel),
 import model, view
 # install shortcuts for performance
 DataItem = model.DataItem
+DirectoryDataItem = model.DirectoryDataItem
+FileDataItem = model.FileDataItem
 Tree = view.Tree
 lTree = view.lTree
 rTree = view.rTree
@@ -432,7 +448,7 @@ bindScrollingHandlers(rTree, lTree)
 # toolbar button handlers
 map(frame.Bind, (wx.EVT_MENU, ) * 12,
         # handlers
-        (genOnCopy(lTree), genOnCopy(rTree), onDel,
+        (genOnCopy('left', 'right'), genOnCopy('right', 'left'), onDel,
          onCmp, onRefreshAll, onFocus, onBrowse,
          onNew, onSave, onLoad,
          onAbout, onHelp),
