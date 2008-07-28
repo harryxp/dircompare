@@ -1,0 +1,222 @@
+##############################
+# Idea                       #
+##############################
+
+DirCompare employes the power of Python and wxPython, gives comfortable and intuitive user experience.
+
+Targets:
+
+1. paned window with trees simultaneously expanding/folding in each pane
+2. bi-directional file/folder copy
+3. synchronized scrolling 
+4. file/folder name filters
+5. persistent sessions
+6. multi-columns displaying modified time, etc.
+7. invoking file comparison tools (e.g., Vim, PSPad)
+8. binary/CRC/timestamp as comparing criteria
+9. sorting
+10. highlights
+11. tabs for multiple comparisons
+12. FTP support (so make your dir interface general!)
+
+##############################
+# Implementation             #
+##############################
+
+I. Data Model
+
+1. DataItem
+The abstraction of the 2-party comparison result is 'DataItem', namely 'item' in this document. It serves as the data source of the user interface; more specifically, the data source of the 'tree' view.
+
+The attributes of DataItem are:
+<non callables>
+    filename
+    type
+    status [property, rw]
+    children
+    parent
+    leftLocation
+    rightLocation
+    leftFile [property, r]
+    rightFile [property, r]
+    leftFileExists [property, r]
+    rightFileExists [property, r]
+    ignore
+<callables>
+    __init__
+    initChildrenItems
+    __decideItemCommonUnknown
+    __initOneSideItems
+    __initCommonItems
+    copyTo
+    remove
+    compareFiles
+    notifyChildUpdate
+    refresh
+    __cmp__
+    __repr__
+    __str__
+
+The items being compared are divided into 2 categories: folders and files.
+
+(In this document, the term 'file' doesn't include folders.)
+
+Some files are not comparable due to different reasons: inaccessible files/folders, device files (block/character device), etc.
+
+The status of an item can be:
+
++--------------------------+-------------------------------+---------------------------------------+-----------------------------------------------+
+|   status                 |   representation              |   comments                            | operations (global operations are not listed) |
++--------------------------+-------------------------------+---------------------------------------+-----------------------------------------------+
+|   uncompared             |   Empty value (e.g., None in  |   A special state. When the item      |                                               |
+|                          |   Python, null in Java)       |   exists but the actual folders/files |                                               |
+|                          |                               |   are not compared yet, or when 2     |                                               |
+|                          |                               |   folders/files are both deleted/non- |                                               |
+|                          |                               |   existed.                            |                                               |
+|             ~            |                ~              |                   ~                   |                                               |
+|   common, same           |   STATUS_SAME                 |   Two folders are considered same     | D, B, F                                       |
+|                          |                               |   only if                             |                                               |
+|                          |                               |     1. they're both comparable        |                                               |
+|                          |                               |     2. their are on both side         |                                               |
+|                          |                               |     3. all their subitems are same    |                                               |
+|                          |                               |   Two files are considered same       |                                               |
+|                          |                               |   if                                  |                                               |
+|                          |                               |     1. they're both comparable        |                                               |
+|                          |                               |     2. their are on both side         |                                               |
+|                          |                               |     3. their are identified as same   |                                               |
+|                          |                               |        using a predicate (currently   |                                               |
+|                          |                               |        filecmp.cmp)                   |                                               |
+|             ~            |                ~              |                   ~                   |                                               |
+|   common, diff           |   STATUS_DIFF                 |                                       | >, <, D, C(file only), B, F                   |
+|             ~            |                ~              |                   ~                   |                                               |
+|   common, both unknown   |   STATUS_COMMON_BOTH_UNKNOWN  |   The file/folder exists on both      |                                               |
+|                          |                               |   sides, but both of them are         |                                               |
+|                          |                               |   uncomparable.                       |                                               |
+|             ~            |                ~              |                   ~                   |                                               |
+|   common, left unknown   |   STATUS_COMMON_LEFT_UNKNOWN  |   The file/folder exists on both      | D(right only), B(right only)                  |
+|                          |                               |   sides, but the left side is         |                                               |
+|                          |                               |   uncomparable.                       |                                               |
+|             ~            |                ~              |                   ~                   |                                               |
+|   common, right unknown  |   STATUS_COMMON_RIGHT_UNKNOWN |   The file/folder exists on both      | D(left only), B(left only)                    |
+|                          |                               |   sides, but the right side is        |                                               |
+|                          |                               |   uncomparable.                       |                                               |
+|             ~            |                ~              |                   ~                   |                                               |
+|   left only              |   STATUS_LEFT_ONLY            |   The file/folder only exists on left | >, D(left only), B(left only)                 |
+|                          |                               |   side, and it's comparable.          |                                               |
+|             ~            |                ~              |                   ~                   |                                               |
+|   right only             |   STATUS_RIGHT_ONLY           |   The file/folder only exists on      | <, D(right only), B(right only)               |
+|                          |                               |   right side, and it's comparable.    |                                               |
+|             ~            |                ~              |                   ~                   |                                               |
+|   left only, unknown     |   STATUS_LEFT_ONLY_UNKNOWN    |   The file/folder only exists on left |                                               |
+|                          |                               |   side, and it's uncomparable.        |                                               |
+|             ~            |                ~              |                   ~                   |                                               |
+|   right only, unknown    |   STATUS_RIGHT_ONLY_UNKNOWN   |   The file/folder only exists on      |                                               |
+|                          |                               |   right side, and it's uncomparable.  |                                               |
++--------------------------+-------------------------------+---------------------------------------+-----------------------------------------------+
+
+Operations:
+>: copy from left to right (always left only)
+<: copy from right to left (always right only)
+D: delete
+C: compare files (file only)
+R: refresh all (global)
+F: focus on selected folder
+B: browse in file manager
+N: new compare session (global)
+S: save compare session (global)
+L: load compare session (global)
+
+The comparison result of 2 folders can only be acquired after each of their children is compared, recursively.
+
+2. PyData
+
+PyData objects are used to connect left/right wx tree items with each other and with the data item (the DataItem object). Instances of this class are *attached* to wx tree items.
+
+                tree_items
+                    |^
+                    ||
+                    ||
+                    V|     ------> data_item
+                 py_data  <------
+
+II. Algorithm
+
+The comparison always starts with 2 folders (left and right). They're considered "common".
+
+To compare 2 folders (left and right):
+1. If one or more of them are uncomparable, the item representing left and right is marked as STATUS_COMMON_BOTH_UNKNOWN, STATUS_COMMON_LEFT_UNKNOWN or STATUS_COMMON_RIGHT_UNKNOWN, then the comparison process ends.
+2. If not, fetch all folders/files in the 2 given folders, and forms 4 sets: <folders in left>, <folders in right>, <files in left>, <files in right>.
+    Use these sets to do more comparisons:
+    2a. For each folder name only appears in left
+        - if the folder is comparable, the item is marked as STATUS_LEFT_ONLY, its children is (recursively) marked as STATUS_LEFT_ONLY, STATUS_LEFT_ONLY_UNKNOWN
+        - if the folder is uncomparable, the item is marked as STATUS_LEFT_ONLY_UNKNOWN
+    2b. For each folder name only appears in right
+        - if the folder is comparable, the item is marked as STATUS_RIGHT_ONLY, its children is (recursively) marked as STATUS_RIGHT_ONLY, STATUS_RIGHT_ONLY_UNKNOWN
+        - if the folder is uncomparable, the item is marked as STATUS_RIGHT_ONLY_UNKNOWN
+    2c. For each file name only appears in left
+        - if the file is comparable, the item is marked as STATUS_LEFT_ONLY
+        - if the file is uncomparable, the item is marked as STATUS_LEFT_ONLY_UNKNOWN
+    2d. For each file name only appears in right
+        - if the file is comparable, the item is marked as STATUS_RIGHT_ONLY
+        - if the file is uncomparable, the item is marked as STATUS_RIGHT_ONLY_UNKNOWN
+    2e. For each folder name common to left and right, compare them from step 1.
+    2f. For each file name common to left and right, compare them.
+3. If every item from 2a ~ 2f is STATUS_SAME, the item representing left and right is marked as STATUS_SAME. The comparison process ends.
+4. If not, the item representing left and right is marked as STATUS_DIFF. The comparison process ends.
+
+To compare 2 files:
+1. If one or more of them are uncomparable, the item representing left and right is marked as STATUS_COMMON_BOTH_UNKNOWN, STATUS_COMMON_LEFT_UNKNOWN or STATUS_COMMON_RIGHT_UNKNOWN accordingly, then the comparison process ends.
+2. If not, the comparison result of 2 files is given by filecmp.cmp. This shall gives STATUS_DIFF or STATUS_SAME.
+
+Note that
+1. a folder is never compared to a file even they bear the same name, vice versa.
+2. the only chance that 2 folders being compared have different names is that they're given as initial left and right.
+
+III. Operations On Items
+1. Copy To The Other Side
+    This operation only applies to
+        STATUS_DIFF,
+        STATUS_LEFT_ONLY and
+        STATUS_RIGHT_ONLY
+    items.
+    It'll result STATUS_SAME on target item.
+    It may cause parent items to become STATUS_SAME.
+    It'll cause children items to become STATUS_SAME, if any.
+2. Delete
+    This operation only applies to
+        STATUS_SAME,
+        STATUS_DIFF,
+        STATUS_COMMON_LEFT_UNKNOWN,
+        STATUS_COMMON_RIGHT_UNKNOWN,
+        STATUS_LEFT_ONLY and
+        STATUS_RIGHT_ONLY
+    items. It'll cause diverse results.
+    +-------------------------------+-------------------------------------------+-----------------------+--------------------------+
+    |   prev. status                |   rslt. status                            |   prev. parent status |   rslt. parent status    |
+    +-------------------------------+-------------------------------------------+-----------------------+--------------------------+
+    |   STATUS_SAME                 |   STATUS_LEFT_ONLY or STATUS_RIGHT_ONLY   |   SAME                |   DIFF                   |
+    |                               |                                           |   DIFF                |   DIFF                   |
+    |           ~                   |                     ~                     |                ~      |                ~         |
+    |   STATUS_DIFF                 |   STATUS_LEFT_ONLY or STATUS_RIGHT_ONLY   |   DIFF                |   DIFF                   |
+    |           ~                   |                     ~                     |                ~      |                ~         |
+    |   STATUS_COMMON_LEFT_UNKNOWN  |   STATUS_LEFT_ONLY_UNKNOWN                |   DIFF                |   DIFF                   |
+    |           ~                   |                     ~                     |                ~      |                ~         |
+    |   STATUS_COMMON_RIGHT_UNKNOWN |   STATUS_RIGHT_ONLY_UNKNOWN               |   DIFF                |   DIFF                   |
+    |           ~                   |                     ~                     |                ~      |                ~         |
+    |   STATUS_LEFT_ONLY            |   None                                    |   DIFF                |   DIFF or SAME           |
+    |                               |                                           |   STATUS_LEFT_ONLY    |   STATUS_LEFT_ONLY       |
+    |           ~                   |                     ~                     |                ~      |                          |
+    |   STATUS_RIGHT_ONLY           |   None                                    |   DIFF                |   DIFF or SAME           |
+    |                               |                                           |   STATUS_RIGHT_ONLY   |   STATUS_RIGHT_ONLY      |
+    +-------------------------------+-------------------------------------------+-----------------------+--------------------------+
+
+3. Compare Files
+
+4. Refresh All
+
+5. Refresh Node
+
+6. Browse
+
+IV, Error Handling
+
