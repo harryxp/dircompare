@@ -280,11 +280,11 @@ def getSelections(promptError):
     window = wx.Window.FindFocus()
     if window not in (lTree, rTree):
         promptError()
-        return
+        return window, ()
     selections = window.GetSelections()
     if len(selections) != 1:
         promptError()
-        return
+        return window, ()
     else:
         return window, selections
 
