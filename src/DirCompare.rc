@@ -19,8 +19,8 @@ LOG_FILE=DirCompare.log
 
 # file comparison tool. Only GVim is supported for now.
 # ALWAYS use slash, even on Windows.
-# e.g, FILE_CMP_COMMAND = 'C:/Program Files/Vim/vim72/gvim.exe'
-FILE_CMP_COMMAND='D:/Vim/vim72/gvim.exe'
+# e.g, FILE_CMP_COMMAND =C:/Program Files/Vim/vim72/gvim.exe
+FILE_CMP_COMMAND=D:/Vim/vim72/gvim.exe
 
 # SHALLOW is passed to filecmp.cmp to decide whether this is a shallow file comparison or not
 # SHALLOW will be parsed as int(SHALLOW)
