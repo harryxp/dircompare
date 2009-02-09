@@ -1,7 +1,7 @@
 #    -*- coding: utf-8 -*-
 #    Advanced directory compare tool in Python.
 #
-#    Copyright (C) 2008  Pan Xingzhi
+#    Copyright (C) 2008, 2009  Pan Xingzhi
 #    http://code.google.com/p/dircompare/
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -17,6 +17,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
 import os
 import os.path as path
 import sys
@@ -273,7 +274,7 @@ class DirectoryDataItem(DataItem):
             elif itemType is FileDataItem:
                 if not _isUnknown(itm.leftFullName) and not _isUnknown(itm.rightFullName):
                     itm.status = STATUS_COMMON_SAME \
-                            if filecmp.cmp(itm.leftFullName, itm.rightFullName, shallow=conf.shallow) else \
+                            if filecmp.cmp(itm.leftFullName, itm.rightFullName, shallow=int(conf.shallow)) else \
                             STATUS_COMMON_DIFF
                 else:
                     itm.status = STATUS_UNKNOWN_COMMON
@@ -437,9 +438,9 @@ if __name__ == '__main__':
     try:
         leftPath, rightPath = sys.argv[1], sys.argv[2]
     except IndexError, e:
-        print "Usage: python model.py leftPath rightPath"
+        print("Usage: python model.py leftPath rightPath")
         sys.exit(1)
     rootDataItem = DirectoryDataItem('', leftPath, rightPath)
     rootDataItem.compare()
-    print rootDataItem
+    print(rootDataItem)
 
