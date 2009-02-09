@@ -1,7 +1,7 @@
 #    -*- coding: utf-8 -*-
 #    Advanced directory compare tool in Python.
 #
-#    Copyright (C) 2008  Pan Xingzhi
+#    Copyright (C) 2008, 2009  Pan Xingzhi
 #    http://code.google.com/p/dircompare/
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -17,6 +17,14 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
+import sys
+try:
+    import wx
+except ImportError as e:
+    print('wxPython not (properly) installed. Please do it and try again.',
+            file=sys.stderr)
+    sys.exit(1)
 import os
 import os.path as path
 import cPickle
@@ -424,7 +432,6 @@ frame = view.frame
 DataItem.updateUI = updateUI
 
 # bind handlers
-import wx
 lTree.Bind(wx.EVT_TREE_ITEM_ACTIVATED, genOnItemActivated(lTree, rTree))
 rTree.Bind(wx.EVT_TREE_ITEM_ACTIVATED, genOnItemActivated(rTree, lTree))
 lTree.Bind(wx.EVT_TREE_SEL_CHANGED, genOnSelChanged(lTree, rTree))
@@ -459,7 +466,6 @@ map(frame.Bind, (wx.EVT_MENU, ) * 12,
          frame.btn_new, frame.btn_save, frame.btn_load,
          frame.btn_abt, frame.btn_hlp))
 
-import sys
 if __name__ == '__main__' and len(sys.argv) == 2:
     loadSessionFromFile(sys.argv[1])
 

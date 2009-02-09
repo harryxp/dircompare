@@ -1,7 +1,7 @@
 #    -*- coding: utf-8 -*-
 #    Advanced directory compare tool in Python.
 #
-#    Copyright (C) 2008  Pan Xingzhi
+#    Copyright (C) 2008, 2009  Pan Xingzhi
 #    http://code.google.com/p/dircompare/
 #
 #    This program is free software: you can redistribute it and/or modify

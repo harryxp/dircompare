@@ -1,7 +1,7 @@
 #    -*- coding: utf-8 -*-
 #    Advanced directory compare tool in Python.
 #
-#    Copyright (C) 2008  Pan Xingzhi
+#    Copyright (C) 2008, 2009  Pan Xingzhi
 #    http://code.google.com/p/dircompare/
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -16,6 +16,8 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Dependencies: Python 2.6, wxPython 2.8.9.1
 
 import controller
 

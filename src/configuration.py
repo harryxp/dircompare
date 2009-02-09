@@ -1,7 +1,7 @@
 #    -*- coding: utf-8 -*-
 #    Advanced directory compare tool in Python.
 #
-#    Copyright (C) 2008  Pan Xingzhi
+#    Copyright (C) 2008, 2009  Pan Xingzhi
 #    http://code.google.com/p/dircompare/
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -17,15 +17,30 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-defaultFrameSize = (800, 600)
-normalTextColor = 'black'
-normalBgColor = 'white'
-oneSideTextColor = 'blue'
-oneSideBgColor = 'light blue'
-diffTextColor = 'red'
-diffBgColor = 'pink'
-loggingLevel = 'logging.DEBUG'
-logFile = 'DirCompare.log'
-# e.g, fileCmpCommand = 'C:\\Program Files\\Vim\\vim71\\gvim.exe'
-fileCmpCommand = 'C:\\Program Files\\Vim\\vim71\\gvim.exe'
-shallow = 1
+from __future__ import print_function
+import ConfigParser as cp
+config=cp.ConfigParser()
+try:
+    config.read(['DirCompare.rc'])
+    def get(key):
+        return config.get('default', key)
+    defaultFrameSize = get('DEFAULT_FRAME_SIZE')
+    normalTextColor = get('NORMAL_TEXT_COLOR')
+    normalBgColor = get('NORMAL_BG_COLOR')
+    oneSideTextColor = get('ONE_SIDE_TEXT_COLOR')
+    oneSideBgColor = get('ONE_SIDE_BG_COLOR')
+    diffTextColor = get('DIFF_TEXT_COLOR')
+    diffBgColor = get('DIFF_BG_COLOR')
+    loggingLevel = get('LOGGING_LEVEL')
+    logFile = get('LOG_FILE')
+    fileCmpCommand = get('FILE_CMP_COMMAND')
+    shallow = get('SHALLOW')
+except (cp.ParsingError, cp.NoSectionError) as e:
+    # error(s) in the config file
+    import sys
+    print('Please check your config file "DirCompare.rc".',
+            file=sys.stderr)
+    print(e.message, file=sys.stderr)
+    import sys
+    sys.exit(1)
+
