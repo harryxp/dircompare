@@ -1,0 +1,27 @@
+[default]
+
+# initial size of the main window
+# DEFAULT_FRAME_SIZE will be evaled
+DEFAULT_FRAME_SIZE=(800, 600)
+
+# check wxPython documentation for more colors
+NORMAL_TEXT_COLOR=black
+NORMAL_BG_COLOR=white
+ONE_SIDE_TEXT_COLOR=blue
+ONE_SIDE_BG_COLOR=light blue
+DIFF_TEXT_COLOR=red
+DIFF_BG_COLOR=pink
+
+# the log file can be with an absolute or a relatve path
+# LOGGING_LEVEL will be evaled
+LOGGING_LEVEL=logging.DEBUG
+LOG_FILE=DirCompare.log
+
+# file comparison tool. Only GVim is supported for now.
+# ALWAYS use slash, even on Windows.
+# e.g, FILE_CMP_COMMAND =C:/Program Files/Vim/vim72/gvim.exe
+FILE_CMP_COMMAND=D:/Vim/vim72/gvim.exe
+
+# SHALLOW is passed to filecmp.cmp to decide whether this is a shallow file comparison or not
+# SHALLOW will be parsed as int(SHALLOW)
+SHALLOW=1
