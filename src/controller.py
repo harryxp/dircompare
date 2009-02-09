@@ -90,6 +90,7 @@ def onCmp(event):
     event.Skip()
     if not path.exists(conf.fileCmpCommand):
         alert('GVim installation not found. Please set it up correctly in configuration.py.')
+        return
     def promptError():
         info('Please select one and only one file item to compare.',
                 caption='Operation not supported')
@@ -204,7 +205,7 @@ def onAbout(event):
     aboutinfo = wx.AboutDialogInfo()
     aboutinfo.SetName('DirCompare')
     aboutinfo.SetVersion('0.21')
-    aboutinfo.SetLicense('GNU')
+    aboutinfo.SetLicense('GNU V3')
 #    aboutinfo.SetWebSite('https://sourceforge.net/projects/dircompare')
     aboutinfo.SetWebSite('http://code.google.com/p/dircompare')
     aboutinfo.AddDeveloper('Pan Xingzhi')
