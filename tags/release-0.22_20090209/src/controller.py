@@ -212,7 +212,7 @@ def onAbout(event):
     event.Skip()
     aboutinfo = wx.AboutDialogInfo()
     aboutinfo.SetName('DirCompare')
-    aboutinfo.SetVersion('0.21')
+    aboutinfo.SetVersion('0.22')
     aboutinfo.SetLicense('GNU V3')
 #    aboutinfo.SetWebSite('https://sourceforge.net/projects/dircompare')
     aboutinfo.SetWebSite('http://code.google.com/p/dircompare')
