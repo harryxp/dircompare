@@ -170,9 +170,22 @@ class SessionDialog(wx.Dialog):
 
     def __genOpenDir(self, textCtrl, msg):
         def openDir(event):
-            import os
-            d = wx.DirSelector(message=msg, defaultPath=os.getcwd(), style=0, parent=self)
-            textCtrl.SetValue(d)
+            # focus on the path the user might have given
+            def findLongestLegalPath(pth):
+                """Finds the longest legal path according to the user input in the textctrl, if any.
+                   If failed, it returns current user's home directory as fallback."""
+                import os.path as path
+                if not pth:
+                    # pth being empty or None
+                    return path.expanduser('~')
+                elif path.isdir(pth):
+                    return pth
+                else:
+                    return findLongestLegalPath(path.dirname(pth))
+            existingPath = findLongestLegalPath(textCtrl.GetValue())
+            d = wx.DirSelector(message=msg, defaultPath=existingPath, style=0, parent=self)
+            if d:
+                textCtrl.SetValue(d)
         return openDir
 
 class TreeItemStyle(object):
